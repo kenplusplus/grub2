@@ -1,6 +1,6 @@
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2013  Free Software Foundation, Inc.
+ *  Copyright (C) 2013 Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,26 +16,29 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/types.h>
+#ifndef GRUB_KERNEL_MACHINE_HEADER
+#define GRUB_KERNEL_MACHINE_HEADER	1
+
+#ifndef ASM_FILE
+
 #include <grub/symbol.h>
-#include <grub/uboot/uboot.h>
-#include <grub/datetime.h>
-#include <grub/dl.h>
+#include <grub/types.h>
 
-GRUB_MOD_LICENSE ("GPLv3+");
-
-/* No simple platform-independent RTC access exists in U-Boot. */
-
-grub_err_t
-grub_get_datetime (struct grub_datetime *datetime __attribute__ ((unused)))
+struct grub_fdt_board
 {
-  return grub_error (GRUB_ERR_INVALID_COMMAND,
-		     "can\'t get datetime using U-Boot");
-}
+  const char *vendor, *part;
+  const grub_uint8_t *dtb;
+  grub_size_t dtb_size;
+};
 
-grub_err_t
-grub_set_datetime (struct grub_datetime * datetime __attribute__ ((unused)))
-{
-  return grub_error (GRUB_ERR_INVALID_COMMAND,
-		     "can\'t set datetime using U-Boot");
-}
+extern struct grub_fdt_board grub_fdt_boards[];
+void grub_machine_timer_init (void);
+void grub_pl050_init (void);
+void grub_cros_init (void);
+void grub_rk3288_spi_init (void);
+extern grub_addr_t EXPORT_VAR (start_of_ram);
+#endif /* ! ASM_FILE */
+
+#define GRUB_KERNEL_MACHINE_STACK_SIZE GRUB_KERNEL_ARM_STACK_SIZE
+
+#endif /* ! GRUB_KERNEL_MACHINE_HEADER */

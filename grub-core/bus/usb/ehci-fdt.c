@@ -1,6 +1,7 @@
+/* ehci.c - EHCI Support.  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2013-2015  Free Software Foundation, Inc.
+ *  Copyright (C) 2011  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,20 +17,29 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GRUB_FDTLOAD_CPU_HEADER
-#define GRUB_FDTLOAD_CPU_HEADER 1
+#include <grub/misc.h>
+#include <grub/mm.h>
+#include <grub/time.h>
+#include <grub/usb.h>
+#include <grub/fdtbus.h>
 
-#include <grub/types.h>
-#include <grub/err.h>
+static grub_err_t
+ehci_attach(const struct grub_fdtbus_dev *dev)
+{
+  grub_dprintf ("ehci", "Found generic-ehci\n");
 
-void *
-grub_fdt_load (grub_size_t additional_size);
+  grub_ehci_init_device (grub_fdtbus_map_reg (dev, 0, 0));
+  return 0;
+}
+
+struct grub_fdtbus_driver ehci =
+{
+  .compatible = "generic-ehci",
+  .attach = ehci_attach
+};
+
 void
-grub_fdt_unload (void);
-grub_err_t
-grub_fdt_install (void);
-
-#define GRUB_EFI_PAGE_SHIFT	12
-#define GRUB_EFI_BYTES_TO_PAGES(bytes)   (((bytes) + 0xfff) >> GRUB_EFI_PAGE_SHIFT)
-
-#endif
+grub_ehci_pci_scan (void)
+{
+  grub_fdtbus_register (&ehci);
+}

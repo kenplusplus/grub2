@@ -486,6 +486,7 @@ have_bootdev (enum grub_install_plat pl)
 
     case GRUB_INSTALL_PLATFORM_I386_QEMU:
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
     case GRUB_INSTALL_PLATFORM_MIPS_QEMU_MIPS:
@@ -713,7 +714,7 @@ is_prep_partition (grub_device_t dev)
       if (grub_disk_read (dev->disk, p->offset, p->index,
 			  sizeof (gptdata), &gptdata) == 0)
 	{
-	  const grub_gpt_part_type_t template = {
+	  const grub_gpt_part_guid_t template = {
 	    grub_cpu_to_le32_compile_time (0x9e1a2d38),
 	    grub_cpu_to_le16_compile_time (0xc612),
 	    grub_cpu_to_le16_compile_time (0x4316),
@@ -911,6 +912,7 @@ main (int argc, char *argv[])
 
     case GRUB_INSTALL_PLATFORM_I386_QEMU:
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_MIPSEL_LOONGSON:
     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
@@ -946,6 +948,7 @@ main (int argc, char *argv[])
     case GRUB_INSTALL_PLATFORM_ARM_UBOOT:
     case GRUB_INSTALL_PLATFORM_I386_QEMU:
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_MIPSEL_LOONGSON:
     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
@@ -1448,6 +1451,7 @@ main (int argc, char *argv[])
 		  case GRUB_INSTALL_PLATFORM_MIPSEL_LOONGSON:
 		  case GRUB_INSTALL_PLATFORM_I386_QEMU:
 		  case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+		  case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
 		  case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
 		  case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
 		  case GRUB_INSTALL_PLATFORM_MIPS_QEMU_MIPS:
@@ -1468,6 +1472,7 @@ main (int argc, char *argv[])
 		{
 		  grub_util_fprint_full_disk_name (load_cfg_f, g, dev);
 		  fprintf (load_cfg_f, " ");
+		  free (g);
 		}
 	      if (dev != grub_dev)
 		grub_device_close (dev);
@@ -1542,6 +1547,7 @@ main (int argc, char *argv[])
       break;
 
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_I386_IEEE1275:
     case GRUB_INSTALL_PLATFORM_POWERPC_IEEE1275:
@@ -1629,6 +1635,7 @@ main (int argc, char *argv[])
     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
     case GRUB_INSTALL_PLATFORM_MIPS_QEMU_MIPS:
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_I386_PC:
     case GRUB_INSTALL_PLATFORM_MIPSEL_ARC:
@@ -1841,9 +1848,13 @@ main (int argc, char *argv[])
 	  if (!removable && update_nvram)
 	    {
 	      /* Try to make this image bootable using the EFI Boot Manager, if available.  */
-	      grub_install_register_efi (efidir_grub_dev,
-					 "\\System\\Library\\CoreServices",
-					 efi_distributor);
+	      int ret;
+	      ret = grub_install_register_efi (efidir_grub_dev,
+					       "\\System\\Library\\CoreServices",
+					       efi_distributor);
+	      if (ret)
+	        grub_util_error (_("efibootmgr failed to register the boot entry: %s"),
+				 strerror (ret));
 	    }
 
 	  grub_device_close (ins_dev);
@@ -1864,6 +1875,7 @@ main (int argc, char *argv[])
 	{
 	  char * efifile_path;
 	  char * part;
+	  int ret;
 
 	  /* Try to make this image bootable using the EFI Boot Manager, if available.  */
 	  if (!efi_distributor || efi_distributor[0] == '\0')
@@ -1880,8 +1892,11 @@ main (int argc, char *argv[])
 			  efidir_grub_dev->disk->name,
 			  (part ? ",": ""), (part ? : ""));
 	  grub_free (part);
-	  grub_install_register_efi (efidir_grub_dev,
-				     efifile_path, efi_distributor);
+	  ret = grub_install_register_efi (efidir_grub_dev,
+					   efifile_path, efi_distributor);
+	  if (ret)
+	    grub_util_error (_("efibootmgr failed to register the boot entry: %s"),
+			     strerror (ret));
 	}
       break;
 
@@ -1889,6 +1904,7 @@ main (int argc, char *argv[])
     case GRUB_INSTALL_PLATFORM_MIPSEL_QEMU_MIPS:
     case GRUB_INSTALL_PLATFORM_MIPS_QEMU_MIPS:
     case GRUB_INSTALL_PLATFORM_I386_COREBOOT:
+    case GRUB_INSTALL_PLATFORM_ARM_COREBOOT:
     case GRUB_INSTALL_PLATFORM_I386_MULTIBOOT:
     case GRUB_INSTALL_PLATFORM_MIPSEL_ARC:
     case GRUB_INSTALL_PLATFORM_ARM_UBOOT:

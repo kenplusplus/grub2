@@ -1,6 +1,6 @@
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2013  Free Software Foundation, Inc.
+ *  Copyright (C) 2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,14 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GRUB_LOADER_MACHINE_HEADER
-#define GRUB_LOADER_MACHINE_HEADER	1
+#ifndef GRUB_MACHINE_CONSOLE_HEADER
+#define GRUB_MACHINE_CONSOLE_HEADER	1
 
-grub_err_t EXPORT_FUNC (grub_efi_prepare_platform) (void);
-void * EXPORT_FUNC (grub_efi_allocate_loader_memory) (grub_uint32_t min_offset,
-						      grub_uint32_t size);
+void grub_video_coreboot_fb_init (void);
+void grub_video_coreboot_fb_early_init (void);
+void grub_video_coreboot_fb_late_init (void);
+void grub_video_coreboot_fb_fini (void);
 
-#endif /* ! GRUB_LOADER_MACHINE_HEADER */
+extern struct grub_linuxbios_table_framebuffer *grub_video_coreboot_fbtable;
+
+#endif /* ! GRUB_MACHINE_CONSOLE_HEADER */

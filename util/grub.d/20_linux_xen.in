@@ -43,12 +43,22 @@ case ${GRUB_DEVICE} in
   ;;
 esac
 
+# Default to disabling partition uuid support to maintian compatibility with
+# older kernels.
+GRUB_DISABLE_LINUX_PARTUUID=${GRUB_DISABLE_LINUX_PARTUUID-true}
+
 # btrfs may reside on multiple devices. We cannot pass them as value of root= parameter
 # and mounting btrfs requires user space scanning, so force UUID in this case.
-if [ "x${GRUB_DEVICE_UUID}" = "x" ] || [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ] \
-    || ! test -e "/dev/disk/by-uuid/${GRUB_DEVICE_UUID}" \
+if ( [ "x${GRUB_DEVICE_UUID}" = "x" ] && [ "x${GRUB_DEVICE_PARTUUID}" = "x" ] ) \
+    || ( [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ] \
+	&& [ "x${GRUB_DISABLE_LINUX_PARTUUID}" = "xtrue" ] ) \
+    || ( ! test -e "/dev/disk/by-uuid/${GRUB_DEVICE_UUID}" \
+	&& ! test -e "/dev/disk/by-partuuid/${GRUB_DEVICE_PARTUUID}" ) \
     || ( test -e "${GRUB_DEVICE}" && uses_abstraction "${GRUB_DEVICE}" lvm ); then
   LINUX_ROOT_DEVICE=${GRUB_DEVICE}
+elif [ "x${GRUB_DEVICE_UUID}" = "x" ] \
+    || [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ]; then
+  LINUX_ROOT_DEVICE=PARTUUID=${GRUB_DEVICE_PARTUUID}
 else
   LINUX_ROOT_DEVICE=UUID=${GRUB_DEVICE_UUID}
 fi
@@ -122,16 +132,16 @@ linux_entry ()
         else
             xen_rm_opts="no-real-mode edd=off"
         fi
-	multiboot	${rel_xen_dirname}/${xen_basename} placeholder ${xen_args} \${xen_rm_opts}
+	${xen_loader}	${rel_xen_dirname}/${xen_basename} placeholder ${xen_args} \${xen_rm_opts}
 	echo	'$(echo "$lmessage" | grub_quote)'
-	module	${rel_dirname}/${basename} placeholder root=${linux_root_device_thisversion} ro ${args}
+	${module_loader}	${rel_dirname}/${basename} placeholder root=${linux_root_device_thisversion} ro ${args}
 EOF
   if test -n "${initrd}" ; then
     # TRANSLATORS: ramdisk isn't identifier. Should be translated.
     message="$(gettext_printf "Loading initial ramdisk ...")"
     sed "s/^/$submenu_indentation/" << EOF
 	echo	'$(echo "$message" | grub_quote)'
-	module	--nounzip   ${rel_dirname}/${initrd}
+	${module_loader}	--nounzip   ${rel_dirname}/${initrd}
 EOF
   fi
   sed "s/^/$submenu_indentation/" << EOF
@@ -206,6 +216,18 @@ while [ "x${xen_list}" != "x" ] ; do
     if [ "x$is_top_level" != xtrue ]; then
 	echo "	submenu '$(gettext_printf "Xen hypervisor, version %s" "${xen_version}" | grub_quote)' \$menuentry_id_option 'xen-hypervisor-$xen_version-$boot_device_id' {"
     fi
+    if ($grub_file --is-arm64-efi $current_xen); then
+	xen_loader="xen_hypervisor"
+	module_loader="xen_module"
+    else
+	if ($grub_file --is-x86-multiboot2 $current_xen); then
+	    xen_loader="multiboot2"
+	    module_loader="module2"
+	else
+	    xen_loader="multiboot"
+	    module_loader="module"
+        fi
+    fi
     while [ "x$list" != "x" ] ; do
 	linux=`version_find_latest $list`
 	gettext_printf "Found linux image: %s\n" "$linux" >&2
@@ -234,7 +256,13 @@ while [ "x${xen_list}" != "x" ] ; do
 	    gettext_printf "Found initrd image: %s\n" "${dirname}/${initrd}" >&2
 	else
     # "UUID=" magic is parsed by initrds.  Since there's no initrd, it can't work here.
-	    linux_root_device_thisversion=${GRUB_DEVICE}
+	    if [ "x${GRUB_DEVICE_PARTUUID}" = "x" ] \
+		|| [ "x${GRUB_DISABLE_LINUX_PARTUUID}" = "xtrue" ]; then
+
+		linux_root_device_thisversion=${GRUB_DEVICE}
+	    else
+		linux_root_device_thisversion=PARTUUID=${GRUB_DEVICE_PARTUUID}
+	    fi
 	fi
 
 	if [ "x$is_top_level" = xtrue ] && [ "x${GRUB_DISABLE_SUBMENU}" != xy ]; then
